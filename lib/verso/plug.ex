@@ -10,7 +10,8 @@ defmodule Verso.Plug do
     {name, opts} = opts[:http_opts]
 
     {:ok, response} =
-      Finch.build(request.method, request.url, [], request.body) |> Finch.request(name, opts)
+      Finch.build(request.method, request.url, request.headers, request.body)
+      |> Finch.request(name, opts)
 
     response = handle_response(response, opts[:handle_response])
 
@@ -74,7 +75,7 @@ defmodule Verso.Plug do
     body = do_read_body(conn)
 
     url = Plug.Conn.request_url(conn) |> URI.new!()
-    %Verso.Request{method: conn.method, body: body, url: url}
+    %Verso.Request{method: conn.method, body: body, url: url, headers: conn.req_headers}
   end
 
   defp get_upstream(upstream, conn) when is_function(upstream) do

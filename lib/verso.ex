@@ -15,7 +15,7 @@ defmodule Verso do
           rules()
           |> Enum.reduce(req, fn rule, req ->
             case rule do
-              {:rewrite_host, host} ->
+              {:set_host, host} ->
                 url = %{req.url | host: host}
                 %{req | url: url}
 
@@ -40,9 +40,9 @@ defmodule Verso do
     end
   end
 
-  defmacro rewrite_host(name) do
+  defmacro set_host(name) do
     quote do
-      @rules {:rewrite_host, unquote(name)}
+      @rules {:set_host, unquote(name)}
     end
   end
 

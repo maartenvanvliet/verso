@@ -4,23 +4,44 @@ defmodule VersoTest do
 
   setup do
     start_supervised!({Finch, name: FinchProxy})
-    :ok
+    bypass = Bypass.open()
+    {:ok, bypass: bypass}
   end
 
   describe "function upstream" do
-    test "proxies to example.net with buffer" do
-      conn = conn(:post, "/", "") |> Plug.Conn.assign(:raw_body, "body")
-      opts = Verso.Plug.init(upstream: &call/2, http_opts: {FinchProxy, []})
+    test "proxies to example.net with buffer", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "POST", "/", fn conn ->
+        assert {"x-test", "test"} in conn.req_headers
+
+        Plug.Conn.resp(
+          conn,
+          429,
+          ~s<test>
+        )
+      end)
+
+      conn =
+        conn(:post, "/", "")
+        |> Plug.Conn.assign(:raw_body, "body")
+        |> Plug.Conn.put_req_header("x-test", "test")
+
+      opts = Verso.Plug.init(upstream: &call(&1, &2, bypass), http_opts: {FinchProxy, []})
       conn = Verso.Plug.call(conn, opts)
 
-      assert conn.resp_body =~ "Example Domain"
+      assert conn.resp_body =~ "test"
       assert_received {:req, request}
-      assert request == %Verso.Request{url: "http://example.net", method: "POST", body: "body"}
+
+      assert request == %Verso.Request{
+               url: endpoint_url(bypass.port),
+               method: "POST",
+               headers: [{"x-test", "test"}],
+               body: "body"
+             }
     end
   end
 
-  def call(_conn, req) do
-    request = %Verso.Request{req | url: "http://example.net"}
+  def call(_conn, req, bypass) do
+    request = %Verso.Request{req | url: endpoint_url(bypass.port)}
     send(self(), {:req, request})
     request
   end
@@ -28,7 +49,7 @@ defmodule VersoTest do
   defmodule Upstream do
     use Verso
 
-    rewrite_host("example.net")
+    set_host("example.net")
     set_header("x-foo", "bar")
 
     def call(_conn, req) do
@@ -62,4 +83,6 @@ defmodule VersoTest do
              }
     end
   end
+
+  defp endpoint_url(port), do: "http://localhost:#{port}/"
 end

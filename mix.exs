@@ -22,7 +22,8 @@ defmodule Verso.MixProject do
   defp deps do
     [
       {:plug, "~> 1.0"},
-      {:finch, "~> 0.4"}
+      {:finch, "~> 0.4"},
+      {:bypass, "~> 2.1", only: :test}
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
     ]
   end
